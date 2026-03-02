@@ -6,8 +6,7 @@ import ConfettiSwiftUI
 struct GameView: View {
     @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false
     @StateObject private var model = GameModel()
-    @State private var showingTutorial = false
-    @State private var showingRules = false
+    @State private var showingTutorialFlow = false   // lecture → interactif
     @State private var showingHistory = false
     @State private var showResetConfirm = false
     @State private var confettiTrigger = 0
@@ -60,15 +59,15 @@ struct GameView: View {
             }
             .animation(.spring(response: 0.45, dampingFraction: 0.75), value: model.gameResult)
         }
-        .sheet(isPresented: $showingRules) { RulesView() }
         .sheet(isPresented: $showingHistory) { HistoryView(moves: model.moveHistory) }
-        .fullScreenCover(isPresented: $showingTutorial) {
-            TutorialView { showingTutorial = false }
+        // Lecture 5 pages → tutoriel interactif
+        .fullScreenCover(isPresented: $showingTutorialFlow) {
+            TutorialFlowView { showingTutorialFlow = false }
         }
         .onAppear {
             if !hasSeenTutorial {
                 hasSeenTutorial = true
-                showingTutorial = true
+                showingTutorialFlow = true
             }
         }
         .confettiCannon(
@@ -197,13 +196,7 @@ struct GameView: View {
 
             Spacer()
 
-            Button { showingRules = true } label: {
-                Image(systemName: "book.closed.fill")
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.7))
-            }
-
-            Button { showingTutorial = true } label: {
+            Button { showingTutorialFlow = true } label: {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.7))
@@ -329,7 +322,7 @@ struct GameView: View {
             }
 
             Button {
-                showingTutorial = true
+                showingTutorialFlow = true
             } label: {
                 Label("Revoir le tutoriel", systemImage: "questionmark.circle")
                     .font(.caption.bold())

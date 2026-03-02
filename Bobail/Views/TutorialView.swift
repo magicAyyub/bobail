@@ -12,7 +12,8 @@ private struct TutorialStep {
 // MARK: - Tutorial View
 
 struct TutorialView: View {
-    var onDismiss: () -> Void
+    var onDismiss: () -> Void          // "Passer" — quitte tout
+    var onComplete: (() -> Void)?      // "Jouer !" — enchaîne vers l'interactif (défaut = onDismiss)
 
     @State private var currentStep = 0
     @GestureState private var dragOffset: CGFloat = 0
@@ -63,22 +64,7 @@ struct TutorialView: View {
                     }
 
                     // Buttons
-                    HStack(spacing: 16) {
-                        if currentStep > 0 {
-                            Button {
-                                withAnimation { currentStep -= 1 }
-                            } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(width: 50, height: 50)
-                                    .background(Circle().fill(Color.white.opacity(0.15)))
-                            }
-                        } else {
-                            Spacer().frame(width: 50)
-                        }
-
-                        if currentStep < steps.count - 1 {
+                    if currentStep < steps.count - 1 {
                             Button {
                                 withAnimation { currentStep += 1 }
                             } label: {
@@ -98,9 +84,9 @@ struct TutorialView: View {
                                 )
                             }
                         } else {
-                            Button(action: onDismiss) {
+                            Button(action: onComplete ?? onDismiss) {
                                 HStack(spacing: 8) {
-                                    Text("Jouer !")
+                                    Text("À toi de jouer !")
                                         .font(.headline.bold())
                                     Image(systemName: "gamecontroller.fill")
                                         .font(.headline)
@@ -120,7 +106,6 @@ struct TutorialView: View {
                                 )
                             }
                         }
-                    }
                 }
                 .padding(.bottom, 40)
             }
@@ -212,6 +197,39 @@ extension TutorialView {
                 illustration: AnyView(WinIllustration())
             ),
         ]
+    }
+}
+
+// MARK: - Tutorial Flow (lecture → interactif)
+
+struct TutorialFlowView: View {
+    var onDismiss: () -> Void
+    @State private var showInteractive = false
+
+    var body: some View {
+        ZStack {
+            if showInteractive {
+                InteractiveTutorialGameView(onDismiss: onDismiss)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal:   .opacity
+                    ))
+            } else {
+                TutorialView(
+                    onDismiss: onDismiss,
+                    onComplete: {
+                        withAnimation(.easeInOut(duration: 0.45)) {
+                            showInteractive = true
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity,
+                    removal:   .move(edge: .leading)
+                ))
+            }
+        }
+        .animation(.easeInOut(duration: 0.45), value: showInteractive)
     }
 }
 

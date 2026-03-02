@@ -4,7 +4,7 @@ Application iOS deux joueurs du jeu de plateau africain **Bobail**, développée
 
 ---
 
-## 🎮 Rappel des règles
+## Règles du jeu
 
 | Élément | Description |
 |---|---|
@@ -12,56 +12,63 @@ Application iOS deux joueurs du jeu de plateau africain **Bobail**, développée
 | Joueur 1 | 5 pions bleus sur la ligne 1 (haut) |
 | Joueur 2 | 5 pions rouges sur la ligne 5 (bas) |
 | Bobail | Pion neutre doré au centre (C3) |
-| Victoire | Ramener le Bobail dans son camp **ou** le bloquer |
 
 **Déroulement d'un tour :**
-1. (1er tour uniquement) : Joueur 1 bouge seulement un pion.
-2. Tous les autres tours : bouger le Bobail (1 case), puis bouger un pion.
+1. *1er tour uniquement :* Joueur 1 bouge seulement un pion.
+2. Tous les autres tours : bouger le Bobail (1 case), puis bouger un de ses propres pions.
 
-**Déplacement des pions :** glisse en ligne droite jusqu'à la case précédant un obstacle.
+**Déplacement des pions :** glisse en ligne droite (8 directions) jusqu'à la dernière case libre avant un obstacle.
+
+**Victoire :**
+- **Par le camp** — amener le Bobail sur sa propre ligne de départ.
+- **Par blocage** — entourer le Bobail de sorte que l'adversaire ne puisse plus le bouger.
 
 ---
 
-## 🚀 Installation & exécution
+## Installation
 
 ### Prérequis
-- macOS 13+ avec **Xcode 15+** installé
-- Simulateur iOS 16+ ou un iPhone physique
+- macOS 13+ avec **Xcode 15+**
+- iOS 16+ (simulateur ou iPhone physique)
+- Package Swift : **ConfettiSwiftUI** (ajouté via SPM, voir ci-dessous)
 
 ### Étapes
 
 1. **Créer un nouveau projet Xcode**
-   - Ouvrez Xcode → *File > New > Project*
-   - Choisissez **iOS → App**
-   - Nommez-le **`Bobail`**
-   - Interface : **SwiftUI**
-   - Language : **Swift**
-   - Décochez *Include Tests* (optionnel)
+   - *File > New > Project* → iOS → App
+   - Nom : **`Bobail`** — Interface : SwiftUI — Language : Swift
 
-2. **Remplacer les fichiers sources**
+2. **Ajouter le package ConfettiSwiftUI**
+   - *File > Add Package Dependencies…*
+   - URL : `https://github.com/simibac/ConfettiSwiftUI.git`
+   - Branche : `master`
+
+3. **Ajouter les fichiers sources**
    
-   Supprimez les fichiers générés par Xcode (`ContentView.swift`, `BobailApp.swift`) et ajoutez les fichiers de ce projet :
+   Supprimez `ContentView.swift` et `BobailApp.swift` générés par Xcode, puis ajoutez :
 
    ```
    Bobail/
-   ├── BobailApp.swift                 ← Point d'entrée de l'app
+   ├── BobailApp.swift
    ├── Models/
-   │   └── GameModel.swift             ← Logique du jeu
+   │   └── GameModel.swift
    └── Views/
-       ├── ContentView.swift           ← Vue racine
-       ├── BoardView.swift             ← Plateau + cellules
-       └── GameView.swift              ← Interface complète
+       ├── ContentView.swift
+       ├── BoardView.swift
+       ├── GameView.swift
+       ├── TutorialView.swift
+       └── InteractiveTutorialGameView.swift
    ```
 
    Dans Xcode : *File > Add Files to "Bobail"* et sélectionnez les dossiers `Models/` et `Views/`.
 
-3. **Lancer**
-   - Sélectionnez un simulateur iPhone (ex. iPhone 15)
-   - Cmd+R pour compiler et lancer
+4. **Lancer**
+   - Sélectionnez un simulateur ou votre iPhone
+   - `Cmd+R`
 
 ---
 
-## 🗺️ Architecture du code
+## Architecture
 
 ```
 GameModel (ObservableObject)
@@ -69,26 +76,44 @@ GameModel (ObservableObject)
     currentPlayer: Int              — 1 ou 2
     phase: TurnPhase                — firstTurnMovePawn | moveBobail | moveOwnPawn
     selectedCell, validMoves        — Sélection et mouvements valides
-    gameResult: GameResult          — ongoing | player1Wins | player2Wins
+    gameResult: GameResult          — ongoing | player1Wins(reason) | player2Wins(reason)
+    moveHistory                     — Historique des coups
 
 GameView
-    ├── CampBar ×2                  — Indicateurs joueur (haut/bas)
-    ├── BoardView                   — Grille cliquable
-    │   └── CellView ×25           — Chaque case
-    ├── StatusBar                   — Message de statut
-    ├── RulesView (sheet)           — Popup des règles
-    └── HistoryView (sheet)         — Historique des coups
+    ├── CampBar ×2                  — Indicateurs de joueur (haut/bas)
+    ├── BoardView                   — Grille 5×5 cliquable
+    │   └── CellView ×25           — Chaque case (damier, pièces, points verts)
+    ├── StatusBar                   — Message de phase courant
+    ├── WinOverlay                  — Écran de victoire + confettis
+    ├── HistoryView (sheet)         — Historique des coups
+    └── TutorialFlowView (fullScreenCover)
+            ├── TutorialView        — Tutoriel lecture 5 pages (swipe)
+            └── InteractiveTutorialGameView
+                    └── TutorialController (ObservableObject)
+                            — 5 actes interactifs guidés
 ```
 
 ---
 
-## 📐 Fonctionnalités
+## Fonctionnalités
 
-- ✅ Logique complète du jeu (déplacements, victoire par camp, victoire par blocage)
-- ✅ Affichage des cases de destination valides (points verts)
-- ✅ Indicateur de phase de tour (Bobail → Pion)
-- ✅ Interface adaptative portrait/paysage
-- ✅ Fiche de règles intégrée
-- ✅ Historique des coups
-- ✅ Bouton de réinitialisation avec confirmation
-- ✅ Alerte de fin de partie avec possibilité de rejouer
+**Jeu**
+- Logique complète (déplacements, victoire par camp et par blocage)
+- Affichage des destinations valides (points verts)
+- Indicateur de phase de tour (Bobail → Pion)
+- Écran de victoire avec confettis (ConfettiSwiftUI)
+- Historique des coups
+- Bouton de réinitialisation avec confirmation
+- Interface adaptative portrait et paysage
+- Mode sombre natif
+
+**Didacticiel**
+- Affiché automatiquement au premier lancement (`@AppStorage`)
+- Accessible à tout moment via le bouton `?`
+- 5 pages de lecture (swipe pour naviguer)
+- Enchaîne vers un tutoriel interactif en 5 actes :
+  1. **Premier tour** — déplacer un pion bleu
+  2. **Déplacer le Bobail** — 1 case obligatoire
+  3. **Déplacer un pion** — glissement jusqu'à l'obstacle
+  4. **Victoire par le camp** — amener le Bobail sur sa ligne
+  5. **Victoire par blocage** — enfermer le Bobail
