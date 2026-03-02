@@ -4,7 +4,9 @@ import ConfettiSwiftUI
 // MARK: - Game View
 
 struct GameView: View {
+    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false
     @StateObject private var model = GameModel()
+    @State private var showingTutorial = false
     @State private var showingRules = false
     @State private var showingHistory = false
     @State private var showResetConfirm = false
@@ -60,6 +62,15 @@ struct GameView: View {
         }
         .sheet(isPresented: $showingRules) { RulesView() }
         .sheet(isPresented: $showingHistory) { HistoryView(moves: model.moveHistory) }
+        .fullScreenCover(isPresented: $showingTutorial) {
+            TutorialView { showingTutorial = false }
+        }
+        .onAppear {
+            if !hasSeenTutorial {
+                hasSeenTutorial = true
+                showingTutorial = true
+            }
+        }
         .confettiCannon(
             trigger: $confettiTrigger,
             num: 60,
@@ -69,7 +80,7 @@ struct GameView: View {
             repetitions: 2,
             repetitionInterval: 0.8
         )
-        .onChange(of: model.gameResult) { newResult in
+        .onChange(of: model.gameResult) { _, newResult in
             if newResult != .ongoing { confettiTrigger += 1 }
         }
     }
@@ -187,6 +198,12 @@ struct GameView: View {
             Spacer()
 
             Button { showingRules = true } label: {
+                Image(systemName: "book.closed.fill")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Button { showingTutorial = true } label: {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.7))
@@ -310,6 +327,14 @@ struct GameView: View {
                     .font(.caption.bold())
                     .foregroundColor(.white.opacity(0.6))
             }
+
+            Button {
+                showingTutorial = true
+            } label: {
+                Label("Revoir le tutoriel", systemImage: "questionmark.circle")
+                    .font(.caption.bold())
+                    .foregroundColor(.white.opacity(0.6))
+            }
         }
         .frame(maxWidth: 210)
     }
@@ -349,7 +374,7 @@ struct Legend: View {
     }
 }
 
-// MARK: - Rules View
+// MARK: - Rules View (quick reference)
 
 struct RulesView: View {
     @Environment(\.dismiss) private var dismiss
@@ -357,41 +382,112 @@ struct RulesView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ruleSection(icon: "target", iconColor: .orange, title: "Objectif") {
-                        Text("Ramenez le **Bobail (B)** dans votre camp (votre ligne de départ), OU bloquez-le de sorte que l'adversaire ne puisse plus le bouger.")
+                VStack(spacing: 14) {
+
+                    // ── Objectif ───────────────────────────────────────
+                    RefCard(color: .orange, icon: "target", title: "Objectif") {
+                        AnyView(
+                            VStack(alignment: .leading, spacing: 6) {
+                                RefRow(icon: "house.fill", tint: .blue,
+                                       text: "Amène le Bobail sur **ta propre ligne** (ta ligne de départ).")
+                                RefRow(icon: "lock.fill", tint: .red,
+                                       text: "Entoure le Bobail pour qu'à son tour l'adversaire **ne puisse pas le bouger**.")
+                            }
+                        )
                     }
 
-                    ruleSection(icon: "square.grid.3x3.fill", iconColor: .blue, title: "Plateau") {
-                        Text("Grille **5×5** — Joueur 1 commence sur la ligne 1 (bleu), Joueur 2 sur la ligne 5 (rouge). Le Bobail part au centre (C3).")
+                    // ── Plateau ─────────────────────────────────────────
+                    RefCard(color: .cyan, icon: "square.grid.3x3.fill", title: "Plateau") {
+                        AnyView(
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    RefPiece(color: .blue,   label: "Joueur 1", detail: "ligne 1  (haut)")
+                                    RefPiece(color: .red,    label: "Joueur 2", detail: "ligne 5  (bas)")
+                                    RefPiece(isGold: true,   label: "Bobail",   detail: "centre  (C3)")
+                                }
+                                Spacer()
+                                MiniStartBoard()
+                            }
+                        )
                     }
 
-                    ruleSection(icon: "arrow.triangle.2.circlepath", iconColor: .green, title: "Déroulement d'un tour") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("**1er tour uniquement :** Joueur 1 bouge seulement un de ses pions.")
-                            Text("**Tour normal (étape 1) :** Déplacez le Bobail d'**une seule case** dans n'importe quelle direction.")
-                            Text("**Tour normal (étape 2) :** Déplacez un de vos pions.")
-                        }
+                    // ── Un tour ─────────────────────────────────────────
+                    RefCard(color: .green, icon: "arrow.triangle.2.circlepath", title: "Déroulement d'un tour") {
+                        AnyView(
+                            VStack(alignment: .leading, spacing: 8) {
+                                // First turn exception
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "star.fill")
+                                        .foregroundColor(.purple)
+                                        .font(.caption)
+                                        .padding(.top, 2)
+                                    Text("**1er tour :** Joueur 1 déplace uniquement un pion (pas le Bobail).")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.bottom, 2)
+
+                                Divider()
+
+                                // Normal turn
+                                TurnStepRow(number: "1", color: .orange,
+                                            title: "Bouge le Bobail",
+                                            detail: "1 seule case, vers une case vide")
+                                TurnStepRow(number: "2", color: .blue,
+                                            title: "Bouge un de tes pions",
+                                            detail: "glisse jusqu'avant l'obstacle")
+                            }
+                        )
                     }
 
-                    ruleSection(icon: "arrow.up.and.down.and.arrow.left.and.right", iconColor: .purple, title: "Déplacement des pions") {
-                        Text("Un pion glisse dans la direction choisie sur toute la ligne droite, et s'arrête sur la **dernière case libre avant un obstacle** (pion ami, pion ennemi ou Bobail).")
+                    // ── Déplacements ────────────────────────────────────
+                    RefCard(color: .purple, icon: "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left", title: "Déplacements") {
+                        AnyView(
+                            VStack(alignment: .leading, spacing: 10) {
+                                Label("**Pion** — glisse en ligne droite (8 directions) et s'arrête sur la **dernière case libre avant un obstacle** (pion ami, ennemi ou Bobail).",
+                                      systemImage: "circle.fill")
+                                    .labelStyle(IconOnlyLabelStyle())
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "circle.fill")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                        .padding(.top, 2)
+                                    Text("**Pion** — glisse en ligne droite (8 directions) et s'arrête sur la **dernière case libre juste avant un obstacle** (pion ami, ennemi ou Bobail).")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                HStack(alignment: .top, spacing: 8) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(LinearGradient(colors: [.yellow,.orange], startPoint: .top, endPoint: .bottom))
+                                            .frame(width: 14, height: 14)
+                                        Text("B").font(.system(size: 7, weight: .black)).foregroundColor(.black.opacity(0.6))
+                                    }
+                                    .padding(.top, 2)
+                                    Text("**Bobail** — se déplace d'**exactement 1 case** dans n'importe quelle des 8 directions, uniquement vers une case **vide**.")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        )
                     }
 
-                    ruleSection(icon: "circle.fill", iconColor: .yellow, title: "Déplacement du Bobail") {
-                        Text("Le Bobail se déplace d'exactement **une case** dans n'importe quelle direction (8 directions), vers une case vide uniquement.")
+                    // ── Victoire ─────────────────────────────────────────
+                    RefCard(color: .yellow, icon: "trophy.fill", title: "Victoire") {
+                        AnyView(
+                            VStack(alignment: .leading, spacing: 6) {
+                                RefRow(icon: "house.fill", tint: .blue,
+                                       text: "**Par le camp** — le Bobail atterrit sur ta ligne de départ (peu importe qui l'y a amené).")
+                                RefRow(icon: "lock.fill", tint: .red,
+                                       text: "**Par blocage** — le Bobail est entouré. Le joueur qui doit le bouger et ne peut pas **perd**.")
+                            }
+                        )
                     }
 
-                    ruleSection(icon: "trophy.fill", iconColor: .yellow, title: "Victoire") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("• Amener le Bobail sur **votre propre camp** (votre ligne de départ).")
-                            Text("• Bloquer le Bobail : si à votre tour vous ne pouvez pas bouger le Bobail, l'adversaire gagne.")
-                        }
-                    }
                 }
                 .padding()
             }
-            .navigationTitle("Règles du Bobail")
+            .navigationTitle("Règles rapides")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -400,29 +496,136 @@ struct RulesView: View {
             }
         }
     }
+}
 
-    @ViewBuilder
-    private func ruleSection<Content: View>(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label {
-                Text(title).font(.headline)
-            } icon: {
+// MARK: - Rules Sub-components
+
+private struct RefCard<Content: View>: View {
+    let color: Color
+    let icon: String
+    let title: String
+    let content: () -> Content
+
+    init(color: Color, icon: String, title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.color = color; self.icon = icon; self.title = title; self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .foregroundColor(iconColor)
+                    .font(.subheadline.bold())
+                    .foregroundColor(color)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(color.opacity(0.15)))
+                Text(title)
+                    .font(.headline.bold())
             }
             content()
-                .font(.body)
-                .foregroundColor(.secondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.secondary.opacity(0.08))
-        .cornerRadius(10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(color.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(color.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
+private struct RefRow: View {
+    let icon: String
+    let tint: Color
+    let text: LocalizedStringKey
+
+    init(icon: String, tint: Color, text: String) {
+        self.icon = icon; self.tint = tint
+        self.text = LocalizedStringKey(text)
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(tint)
+                .font(.caption)
+                .padding(.top, 2)
+            Text(text).font(.subheadline).foregroundColor(.secondary)
+        }
+    }
+}
+
+private struct RefPiece: View {
+    var color: Color = .clear
+    var isGold: Bool = false
+    let label: String
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isGold {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [.yellow,.orange], startPoint: .top, endPoint: .bottom))
+                        .frame(width: 18, height: 18)
+                    Text("B").font(.system(size: 9, weight: .black)).foregroundColor(.black.opacity(0.6))
+                }
+            } else {
+                Circle().fill(color).frame(width: 18, height: 18)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.caption.bold())
+                Text(detail).font(.system(size: 10)).foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+private struct TurnStepRow: View {
+    let number: String
+    let color: Color
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle().fill(color.opacity(0.85)).frame(width: 26, height: 26)
+                Text(number).font(.caption.bold()).foregroundColor(.white)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.bold())
+                Text(detail).font(.caption).foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+// Mini starting-board for rules card
+private struct MiniStartBoard: View {
+    var body: some View {
+        VStack(spacing: 1) {
+            ForEach(0..<5, id: \.self) { r in
+                HStack(spacing: 1) {
+                    ForEach(0..<5, id: \.self) { c in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(cellColor(r: r, c: c))
+                            .frame(width: 14, height: 14)
+                    }
+                }
+            }
+        }
+        .padding(4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color(hex: "#4a2a0a").opacity(0.5)))
+    }
+
+    private func cellColor(r: Int, c: Int) -> Color {
+        if r == 0 { return .red.opacity(0.7) }
+        if r == 4 { return .blue.opacity(0.7) }
+        if r == 2 && c == 2 { return .yellow }
+        return (r + c) % 2 == 0 ? Color(hex: "#c8a06a").opacity(0.5) : Color(hex: "#7a4a2a").opacity(0.5)
     }
 }
 
