@@ -228,13 +228,13 @@ class GameModel: ObservableObject {
     private func checkWinAfterBobailMove(landedOn pos: Position) {
         guard gameResult == .ongoing else { return }
 
-        // Player 1 wins if Bobail reaches row 0 (their camp)
-        if currentPlayer == 1 && pos.row == 0 {
+        // Whoever moved it, if the Bobail lands on row 0 → Player 1 wins
+        if pos.row == 0 {
             gameResult = .player1Wins(reason: "Le Bobail est arrivé dans le camp du Joueur 1 !")
             return
         }
-        // Player 2 wins if Bobail reaches row 4 (their camp)
-        if currentPlayer == 2 && pos.row == 4 {
+        // Whoever moved it, if the Bobail lands on row 4 → Player 2 wins
+        if pos.row == 4 {
             gameResult = .player2Wins(reason: "Le Bobail est arrivé dans le camp du Joueur 2 !")
             return
         }
@@ -275,10 +275,10 @@ class GameModel: ObservableObject {
 
     private func updateStatusMessage() {
         switch gameResult {
-        case .player1Wins(let reason):
-            statusMessage = "🏆 Joueur 1 gagne ! \(reason)"
-        case .player2Wins(let reason):
-            statusMessage = "🏆 Joueur 2 gagne ! \(reason)"
+        case .player1Wins:
+            statusMessage = "Joueur 1 gagne !"
+        case .player2Wins:
+            statusMessage = "Joueur 2 gagne !"
         case .ongoing:
             switch phase {
             case .firstTurnMovePawn:
